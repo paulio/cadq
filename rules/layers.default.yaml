@@ -1,0 +1,173 @@
+# Default layer-name ontology rules.
+#
+# Each rule maps a regex (case-insensitive, matched against the layer name)
+# to an ontology type and a confidence score in [0, 1].  Rules are evaluated
+# top-to-bottom; the first match wins, but the engine records all matches in
+# `ontology_log` for `cadq explain`.
+#
+# Ontology types use dotted hierarchy so prefix queries are easy:
+#   landscape.softscape.lawn
+#   landscape.hardscape.driveway
+#   site.boundary
+#   building.footprint
+#   survey.contour.major
+#   survey.contour.minor
+#   survey.spot_elevation
+#
+# Add or override per-project by passing `--rules path/to/your.yaml` to
+# `cadq ingest`.
+
+version: 1
+rules:
+  # --- survey / topography -------------------------------------------------
+  - pattern: '(^|[-_])(spot|sl|rl|levels?)([-_]|$)'
+    ontology: survey.spot_elevation
+    confidence: 0.85
+
+  - pattern: '(^|[-_])contour[-_]?(major|index)([-_]|$)'
+    ontology: survey.contour.major
+    confidence: 0.9
+
+  - pattern: '(^|[-_])contour([-_]|$)'
+    ontology: survey.contour.minor
+    confidence: 0.85
+
+  - pattern: '(^|[-_])(tin|dem|surface)([-_]|$)'
+    ontology: survey.surface
+    confidence: 0.7
+
+  - pattern: '(^|[-_])(bank|embankment|topbank|toebank)([-_]|$)'
+    ontology: survey.bank
+    confidence: 0.7
+
+  # --- site boundary -------------------------------------------------------
+  - pattern: '(^|[-_])(site[-_]?bdy|boundary|title[-_]?line|assumed[-_]?boundary|red[-_]?line)([-_]|$)'
+    ontology: site.boundary
+    confidence: 0.9
+
+  # --- buildings -----------------------------------------------------------
+  - pattern: '(^|[-_])(bldg|building|footprint|outline)([-_]|$)'
+    ontology: building.footprint
+    confidence: 0.8
+
+  - pattern: '(^|[-_])(roof|ridge)([-_]|$)'
+    ontology: building.roof
+    confidence: 0.7
+
+  - pattern: '(^|[-_])(wall|walls)([-_]|$)'
+    ontology: building.wall
+    confidence: 0.65   # walls can be retaining, garden, or structural
+
+  - pattern: '(^|[-_])(door|window|opening)([-_]|$)'
+    ontology: building.opening
+    confidence: 0.7
+
+  # --- landscape: softscape -----------------------------------------------
+  - pattern: '(^|[-_])(lawn|grass|turf)([-_]|$)'
+    ontology: landscape.softscape.lawn
+    confidence: 0.9
+
+  - pattern: '(^|[-_])(tree|trees|treespread|treetrunk|canopy|crown)([-_]|$)'
+    ontology: landscape.softscape.tree
+    confidence: 0.85
+
+  - pattern: '(^|[-_])(hedge|hedges|hedging)([-_]|$)'
+    ontology: landscape.softscape.hedge
+    confidence: 0.85
+
+  - pattern: '(^|[-_])(shrub|shrubs|bush|bushes)([-_]|$)'
+    ontology: landscape.softscape.shrub
+    confidence: 0.8
+
+  - pattern: '(^|[-_])(plnt|planting|bed|garden)([-_]|$)'
+    ontology: landscape.softscape.planting
+    confidence: 0.8
+
+  # --- landscape: hardscape -----------------------------------------------
+  - pattern: '(^|[-_])(driveway|drive)([-_]|$)'
+    ontology: landscape.hardscape.driveway
+    confidence: 0.9
+
+  - pattern: '(^|[-_])(path|footpath|walk|paving|paved)([-_]|$)'
+    ontology: landscape.hardscape.path
+    confidence: 0.8
+
+  - pattern: '(^|[-_])(patio|terrace|deck)([-_]|$)'
+    ontology: landscape.hardscape.patio
+    confidence: 0.8
+
+  - pattern: '(^|[-_])(road|carriageway|kerb|curb)([-_]|$)'
+    ontology: landscape.hardscape.road
+    confidence: 0.75
+
+  - pattern: '(^|[-_])(step|steps|stair|stairs)([-_]|$)'
+    ontology: landscape.hardscape.step
+    confidence: 0.75
+
+  - pattern: '(^|[-_])(fence|fencing|railing|railings)([-_]|$)'
+    ontology: landscape.hardscape.fence
+    confidence: 0.8
+
+  # --- water / drainage ----------------------------------------------------
+  - pattern: '(^|[-_])(pond|lake|water|pool)([-_]|$)'
+    ontology: landscape.water
+    confidence: 0.8
+
+  - pattern: '(^|[-_])(drain|gully|sw|fw|ic|mh|manhole)([-_]|$)'
+    ontology: services.drainage
+    confidence: 0.7
+
+  - pattern: '(^|[-_])(street[-_]?furniture|streetfurniture|sf|bench|bin|bollard|signpost|lamp|lighting)([-_]|$)'
+    ontology: services.street_furniture
+    confidence: 0.7
+
+  # --- annotations ---------------------------------------------------------
+  - pattern: '(^|[-_])(text|anno|annotation|label|dim|dimension|legend|format)([-_]|$)'
+    ontology: annotation.text
+    confidence: 0.6
+
+  - pattern: '(^|[-_])(grid|axis|axes|control|north|viewport)([-_]|$)'
+    ontology: annotation.grid
+    confidence: 0.7
+
+# Hatch-pattern → ontology hints.  Used as a secondary signal when a closed
+# region's layer name is ambiguous.
+hatch_hints:
+  GRASS: landscape.softscape.lawn
+  EARTH: landscape.softscape.planting
+  GRAVEL: landscape.hardscape.path
+  AR-CONC: landscape.hardscape.driveway
+  AR-SAND: landscape.hardscape.path
+  AR-BRSTD: landscape.hardscape.patio
+  WATER: landscape.water
+
+# Block-name rules — every INSERT whose block name matches becomes a
+# point feature with the given ontology.
+block_rules:
+  - pattern: '(^|[-_])(tree|trees|treespread|treetrunk|conifer|canopy|crown)([-_]|$)'
+    ontology: landscape.softscape.tree
+    confidence: 0.85
+  - pattern: '(^|[-_])(shrub|bush)([-_]|$)'
+    ontology: landscape.softscape.shrub
+    confidence: 0.8
+  - pattern: '(^|[-_])(hedge)([-_]|$)'
+    ontology: landscape.softscape.hedge
+    confidence: 0.85
+  - pattern: '(^|[-_])(mh|manhole|ic|inspection)([-_]|$)'
+    ontology: services.drainage.manhole
+    confidence: 0.85
+  - pattern: '(^|[-_])(gully|drain)([-_]|$)'
+    ontology: services.drainage.gully
+    confidence: 0.8
+  - pattern: '(^|[-_])(spot|level|rl|ffl)([-_]|$)'
+    ontology: survey.spot_elevation
+    confidence: 0.85
+  - pattern: '(^|[-_])(north|n[-_]?arrow)([-_]|$)'
+    ontology: annotation.north_arrow
+    confidence: 0.95
+  - pattern: '(^|[-_])(scale[-_]?bar|scalebar)([-_]|$)'
+    ontology: annotation.scale_bar
+    confidence: 0.95
+  - pattern: '(^|[-_])(bench|bin|bollard|post|lamp|signpost)([-_]|$)'
+    ontology: services.street_furniture
+    confidence: 0.7
